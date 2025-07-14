@@ -16,7 +16,7 @@ def calculate_kelly_criterion(win_probability, win_reward):
 # Page headers
 st.set_page_config(page_title="Compound Interest Calculator", layout="wide", page_icon="📈")
 
-st.title("Compound Calculator")
+st.title("Compound Interest Calculator")
 st.markdown("""
 **Explain what the app does**  
 *Explain it even more*
@@ -44,7 +44,7 @@ with st.sidebar:
     st.markdown("*For educational purposes only*")
 
 
-# Expectancy Section
+# Trading System Setup Section
 
 col1, col2 = st.columns(2)
 with col1:
@@ -68,21 +68,6 @@ with col1:
 
     expectancy = calculate_expectancy(win_probability_pct, win_reward_R)
 
-    # Color-coded expectancy display
-    if expectancy >= 0:
-        exp_color = "green"
-        exp_icon = "✅"
-    else:
-        exp_color = "red"
-        exp_icon = "⚠️"
-
-    st.markdown(f"<h3 style='text-align: center; color: {exp_color};'>"
-                f"{exp_icon} Expectancy: <b>{expectancy}R</b> per trade </h3>",
-                unsafe_allow_html=True)
-
-with col2:
-    st.header("📊 Projected Returns")
-
     no_of_opportunities_per_period = st.slider(
         "**Opportunities per Period**",
         min_value=1,
@@ -99,13 +84,51 @@ with col2:
         help="Number of periods to project forward"
     )
 
-    total_return = round(expectancy * no_of_opportunities_per_period * no_of_periods, 1)
+    no_of_cycles = st.slider(
+        "**Number of Cycles**",
+        min_value=1,
+        max_value=50,
+        value=30,
+        help="Number of cycles to project forward"
+    )
 
-    # Color-coded total return display
-    return_color = "green" if total_return >= 0 else "red"
-    st.markdown(f"<h3 style='text-align: center; color: {return_color};'>"
-                f"Total Return: <b>{total_return}R</b></h3>",
-                unsafe_allow_html=True)
+    total_return_per_period = round(expectancy * no_of_opportunities_per_period * no_of_periods, 1)
+
+
+with col2:
+    st.header("📊 Position Size Setup")
+
+    # Other Inputs
+    starting_account_balance = st.number_input(
+        "Starting Account Balance",
+        min_value=500,
+        max_value=500000,
+    )
+    period_cycle_choice = ["Period", "Cycle"]
+
+    compound_period = st.segmented_control("Compounded per", period_cycle_choice)
+
+    add_to_account_value = st.number_input("Add to account", min_value=0, max_value=10000)
+    add_to_account_period = st.segmented_control(
+        "Added to account period",
+        period_cycle_choice,
+        key="Add period"
+    )
+
+    withdraw_from_account_value = st.number_input("Withdraw from account", min_value=0, max_value=10000)
+    withdraw_from_account_period = st.segmented_control(
+        "Withdrawn from account period",
+        period_cycle_choice,
+        key="Withdraw period"
+    )
+
+    tax_value_pct = st.slider("Capital Gains Tax", min_value=0, max_value=100)
+    tax_period = st.segmented_control(
+        "Tax paid per period",
+        period_cycle_choice,
+        key="Tax period"
+    )
+
 
 # Kelly Criterion section
 st.markdown("#")
@@ -232,38 +255,38 @@ with chart_container:
         st.warning("This expectancy value is not mathematically possible with positive risk:reward ratios")
 
 # Explanation section
-with st.expander("💡 How to interpret these results"):
-    st.markdown(f"""
-    With a **{win_probability_pct}% win rate** and **{win_reward_R} : 1 reward-to-risk ratio**:
-
-    - Your expectancy is **{expectancy}R** per trade
-    - This means you'll average **&dollar;{expectancy} per &dollar;1 risked** over many trades
-    - With **{no_of_opportunities_per_period} trades per period** over **{no_of_periods} periods**:
-        - Total projected return = **{total_return}R**
-        - This equals **&dollar;{total_return} per &dollar;1 risked** overall
-    """)
-
-    st.markdown("""
-    **Key Insights:**
-    - Positive expectancy (>0) indicates a profitable strategy
-    - Expectancy > 0.2 is generally considered good
-    - Expectancy > 0.5 is considered excellent
-    - Negative expectancy means the strategy loses money over time
-    """)
-
-    st.subheader("Position Sizing")
-    st.markdown(f"""
-        For your strategy parameters:
-
-        - **Kelly Criterion** suggests risking **{display_kelly:.2f}%** of capital per trade
-        - **Half-Kelly** approach recommends **{display_kelly / 2:.2f}%** per trade
-        - Most risk managers recommend **never risking more than 1-2%** per trade
-
-        *Why the differences?*
-        - Kelly Criterion maximizes long-term growth but assumes perfect knowledge
-        - Real trading has uncertainty, so most traders use fractional Kelly
-        - Conservative sizing protects against black swan events and estimation errors
-        """)
+# with st.expander("💡 How to interpret these results"):
+#     st.markdown(f"""
+#     With a **{win_probability_pct}% win rate** and **{win_reward_R} : 1 reward-to-risk ratio**:
+#
+#     - Your expectancy is **{expectancy}R** per trade
+#     - This means you'll average **&dollar;{expectancy} per &dollar;1 risked** over many trades
+#     - With **{no_of_opportunities_per_period} trades per period** over **{no_of_periods} periods**:
+#         - Total projected return = **{total_return}R**
+#         - This equals **&dollar;{total_return} per &dollar;1 risked** overall
+#     """)
+#
+#     st.markdown("""
+#     **Key Insights:**
+#     - Positive expectancy (>0) indicates a profitable strategy
+#     - Expectancy > 0.2 is generally considered good
+#     - Expectancy > 0.5 is considered excellent
+#     - Negative expectancy means the strategy loses money over time
+#     """)
+#
+#     st.subheader("Position Sizing")
+#     st.markdown(f"""
+#         For your strategy parameters:
+#
+#         - **Kelly Criterion** suggests risking **{display_kelly:.2f}%** of capital per trade
+#         - **Half-Kelly** approach recommends **{display_kelly / 2:.2f}%** per trade
+#         - Most risk managers recommend **never risking more than 1-2%** per trade
+#
+#         *Why the differences?*
+#         - Kelly Criterion maximizes long-term growth but assumes perfect knowledge
+#         - Real trading has uncertainty, so most traders use fractional Kelly
+#         - Conservative sizing protects against black swan events and estimation errors
+#         """)
 
 
 # Footer
