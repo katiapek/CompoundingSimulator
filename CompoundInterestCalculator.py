@@ -1,6 +1,7 @@
 import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import pandas as pd
 
 
 def calculate_expectancy(win_probability, win_reward):
@@ -66,8 +67,6 @@ with col1:
         help="Profit potential relative to your risk (e.g., 2.0 = 2:1 ratio)"
     )
 
-    expectancy = calculate_expectancy(win_probability_pct, win_reward_R)
-
     no_of_opportunities_per_period = st.slider(
         "**Opportunities per Period**",
         min_value=1,
@@ -92,89 +91,96 @@ with col1:
         help="Number of cycles to project forward"
     )
 
-    total_return_per_period = round(expectancy * no_of_opportunities_per_period * no_of_periods, 1)
-
-
 with col2:
     st.header("📊 Position Size Setup")
-
-    # Other Inputs
-    starting_account_balance = st.number_input(
-        "Starting Account Balance",
-        min_value=500,
-        max_value=500000,
-    )
     period_cycle_choice = ["Period", "Cycle"]
 
-    compound_period = st.segmented_control("Compounded per", period_cycle_choice)
+    with st.container():
+        col_a, col_b = st.columns(2)
+        with col_a:
+            starting_account_balance = st.number_input(
+                "Starting Account Balance",
+                min_value=500,
+                max_value=500000,
+            )
+        with col_b:
+            compound_period = st.segmented_control("Compounded per", period_cycle_choice)
 
-    add_to_account_value = st.number_input("Add to account", min_value=0, max_value=10000)
-    add_to_account_period = st.segmented_control(
-        "Added to account period",
-        period_cycle_choice,
-        key="Add period"
-    )
+    with st.container():
+        col_a, col_b = st.columns(2)
+        with col_a:
+            add_to_account_value = st.number_input("Add to account", min_value=0, max_value=10000)
+        with col_b:
+            add_to_account_period = st.segmented_control(
+                "Added to account period",
+                period_cycle_choice,
+                key="Add period"
+            )
+    with st.container():
+        col_a, col_b = st.columns(2)
+        with col_a:
+            withdraw_from_account_value = st.number_input("Withdraw from account", min_value=0, max_value=10000)
+        with col_b:
+            withdraw_from_account_period = st.segmented_control(
+                "Withdrawn from account period",
+                period_cycle_choice,
+                key="Withdraw period"
+            )
 
-    withdraw_from_account_value = st.number_input("Withdraw from account", min_value=0, max_value=10000)
-    withdraw_from_account_period = st.segmented_control(
-        "Withdrawn from account period",
-        period_cycle_choice,
-        key="Withdraw period"
-    )
+    with st.container():
+        col_a, col_b = st.columns(2)
+        with col_a:
+            tax_value_pct = st.slider("Capital Gains Tax", min_value=0, max_value=100)
+        with col_b:
+            tax_period = st.segmented_control(
+                "Tax paid per period",
+                period_cycle_choice,
+                key="Tax period"
+            )
 
-    tax_value_pct = st.slider("Capital Gains Tax", min_value=0, max_value=100)
-    tax_period = st.segmented_control(
-        "Tax paid per period",
-        period_cycle_choice,
-        key="Tax period"
-    )
+    user_risk_pct = st.number_input("Risk per trade as a % of bankroll", min_value=0.1, max_value=100.00)
 
+# Calculations section:
+expectancy = calculate_expectancy(win_probability_pct, win_reward_R)
+total_return_per_period = round(expectancy * no_of_opportunities_per_period * no_of_periods, 1)
+kelly_percentage = calculate_kelly_criterion(win_probability_pct, win_reward_R) * 100
+kelly_percentage = max(0, kelly_percentage)
 
-# Kelly Criterion section
+# Strategy Summary
 st.markdown("#")
-st.header("⚖️ Risk Management - Position Sizing")
-kelly_container = st.container()
+st.header("⚖️ Strategy Summary")
+strategy_obj_df = pd.DataFrame({
+    "Win-Rate %" : win_probability_pct,
+    "R Ratio": win_reward_R,
+    "Expectancy" : expectancy,
+    "Kelly Criterion": kelly_percentage,
+    "User Risk %": user_risk_pct
+}, index=[0])
+st.dataframe(strategy_obj_df, hide_index=True)
 
-with kelly_container:
-    kelly_percentage = calculate_kelly_criterion(win_probability_pct, win_reward_R) * 100
-    display_kelly = max(0, kelly_percentage)
+strategy_container = st.container()
 
-    if display_kelly > 20:
-        # kelly_color = 'red'
-        risk_advice = 'Aggressive'
-    elif display_kelly > 10:
-        # kelly_color = 'orange'
-        risk_advice = 'Moderately Aggressive'
-    elif display_kelly > 5:
-        # kelly_color = 'teal'
-        risk_advice = 'Moderate'
-    else:
-        # kelly_color = 'green'
-        risk_advice = 'Conservative'
 
-col3, col4 = st.columns(2)
-with col3:
-    st.subheader("Kelly Criterion")
-    st.metric(
-        "Optimal Risk",
-        f"{display_kelly:.2f}%",
-        help="Theoretical maximum % of capital to risk per trade"
-    )
-    st.metric(
-        "Risk level",
-        risk_advice
-    )
-
-with col4:
-    st.subheader("Safer approach")
-    st.metric(
-        "Half-Kelly",
-        f"{display_kelly/2:.2f}%",
-        help="Common recommended practice to reduce volatility"
-    )
-    st.metric("Most common recommendation",
-              "1-2%",
-              help="Standard risk management guideline")
+# with kelly_container:
+#     col3, col4 = st.columns(2)
+#     with col3:
+#         st.subheader("Kelly Criterion")
+#         st.metric(
+#             "Optimal Risk",
+#             f"{kelly_percentage:.2f}%",
+#             help="Theoretical maximum % of capital to risk per trade"
+#         )
+#
+#     with col4:
+#         st.subheader("Safer approach")
+#         st.metric(
+#             "Half-Kelly",
+#             f"{kelly_percentage/2:.2f}%",
+#             help="Common recommended practice to reduce volatility"
+#         )
+#         st.metric("Most common recommendation",
+#                   "1-2%",
+#                   help="Standard risk management guideline")
 
 
 # Visualisation section
