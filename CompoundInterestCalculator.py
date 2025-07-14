@@ -150,37 +150,15 @@ kelly_percentage = max(0, kelly_percentage)
 st.markdown("#")
 st.header("⚖️ Strategy Summary")
 strategy_obj_df = pd.DataFrame({
-    "Win-Rate %" : win_probability_pct,
+    "Win-Rate %": win_probability_pct,
     "R Ratio": win_reward_R,
-    "Expectancy" : expectancy,
+    "Expectancy": expectancy,
     "Kelly Criterion": kelly_percentage,
     "User Risk %": user_risk_pct
 }, index=[0])
 st.dataframe(strategy_obj_df, hide_index=True)
 
 strategy_container = st.container()
-
-
-# with kelly_container:
-#     col3, col4 = st.columns(2)
-#     with col3:
-#         st.subheader("Kelly Criterion")
-#         st.metric(
-#             "Optimal Risk",
-#             f"{kelly_percentage:.2f}%",
-#             help="Theoretical maximum % of capital to risk per trade"
-#         )
-#
-#     with col4:
-#         st.subheader("Safer approach")
-#         st.metric(
-#             "Half-Kelly",
-#             f"{kelly_percentage/2:.2f}%",
-#             help="Common recommended practice to reduce volatility"
-#         )
-#         st.metric("Most common recommendation",
-#                   "1-2%",
-#                   help="Standard risk management guideline")
 
 
 # Visualisation section
