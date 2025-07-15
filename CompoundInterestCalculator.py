@@ -104,7 +104,11 @@ with col2:
                 max_value=500000,
             )
         with col_b:
-            compound_period = st.segmented_control("Compounded per", period_cycle_choice)
+            ending_account_balance = st.number_input(
+                "Ending Account Balance",
+                min_value=100000,
+                max_value=100000000,
+            )
 
     with st.container():
         col_a, col_b = st.columns(2)
@@ -137,12 +141,19 @@ with col2:
                 period_cycle_choice,
                 key="Tax period"
             )
-
-    user_risk_pct = st.number_input("Risk per trade as a % of bankroll", min_value=0.1, max_value=100.00)
+    with st.container():
+        col_a, col_b = st.columns(2)
+        with col_a:
+            user_risk_pct = st.number_input("Risk per trade as a % of bankroll", min_value=0.1, max_value=100.00)
+        with col_b:
+            user_risk_adj_period = st.segmented_control(
+                "Adjust per period",
+                period_cycle_choice,
+                key="Adjust risk period")
 
 # Calculations section:
 expectancy = calculate_expectancy(win_probability_pct, win_reward_R)
-total_return_per_period = round(expectancy * no_of_opportunities_per_period * no_of_periods, 1)
+r_return_per_period = round(expectancy * no_of_opportunities_per_period, 1)
 kelly_percentage = calculate_kelly_criterion(win_probability_pct, win_reward_R) * 100
 kelly_percentage = max(0, kelly_percentage)
 
@@ -168,75 +179,63 @@ st.markdown("""
 **Visualizing how win rate and Reward to Risk ratio relate for the same expectancy**  
 *The curves below show alternative parameter combinations that yield the same expectancy*
 """)
+tab1, tab2 = st.tabs(["DataTable", "Chart"])
+with tab1:
+    compound_interest_result_df = pd.DataFrame()
+    start_balance = starting_account_balance
+    risk_per_trade = start_balance * user_risk_pct / 100
 
-# Present data in the container with tabs - one for chart, one for data table
-chart_container = st.container()
-with chart_container:
-    # Generate data - for each win rate 1-99 find R required to maintain expectancy
-    if expectancy > 0:
-        win_rates = list(range(5, 100))
-        R_required = []
-        kelly_values = []
+    for cycle in range(no_of_cycles):
+        return_per_cycle = []
 
-        # For each win rate calculate R
-        for wr in win_rates:
-            R_val = (expectancy + 1) * (100 / wr) - 1
-            if R_val > 0:
-                R_required.append(R_val)
-                kelly_values.append(calculate_kelly_criterion(wr, R_val) * 100)
+        for period in range(no_of_periods):
+            if start_balance >= ending_account_balance: break;
+            if (period == 0) and (user_risk_adj_period == "Cycle"):
+                risk_per_trade = start_balance * user_risk_pct / 100
+            elif user_risk_adj_period == "Period":
+                risk_per_trade = start_balance * user_risk_pct / 100
+            else:
+                risk_per_trade = risk_per_trade
+            return_on_period = r_return_per_period * risk_per_trade
+            return_per_cycle.append(return_on_period)
+            tax_withheld = return_on_period * tax_value_pct / 100 if tax_period == "Period" else 0
+            add_to_account = add_to_account_value if add_to_account_period == "Period"  else 0
+            withdraw_from_account = withdraw_from_account_value if withdraw_from_account_period == "Period" else 0
 
-        # Create a plot with two y-axis
-        fig = make_subplots(specs=[[{'secondary_y': True}]])
+            if period == no_of_periods-1:
+                add_to_account = add_to_account_value if add_to_account_period == "Cycle" else 0
+                withdraw_from_account = withdraw_from_account_value if withdraw_from_account_period == "Cycle" else 0
+                tax_withheld = sum(return_per_cycle) * tax_value_pct / 100 if tax_period == "Cycle" else 0
 
-        # Add R curve
-        fig.add_trace(
-            go.Scatter(
-                x=win_rates,
-                y=R_required,
-                mode='lines',
-                name='Reward to Risk Ratio',
-                line=dict(color='#1f77b4', width=3),
-                hovertemplate="Required R: %{y:.2f}<extra></extra>",
-            ),
-            secondary_y=False,
-        )
+            end_balance = start_balance + return_on_period + add_to_account - withdraw_from_account - tax_withheld
 
-        # Add Kelly curve
-        fig.add_trace(
-            go.Scatter(
-                x=win_rates,
-                y=kelly_values,
-                mode='lines',
-                name='Kelly Criterion %',
-                line=dict(color='#ff7f0e', width=3, dash='dot'),
-                hovertemplate="Kelly Criterion %: %{y:.2f}%<extra></extra>",
-            ),
-            secondary_y=True
-        )
+            new_row_df = pd.DataFrame(
+                {
+                    "Cycle": cycle+1,
+                    "Period": period+1,
+                    "Starting Balance": start_balance,
+                    "Risk per trade": risk_per_trade,
+                    "Return" : return_on_period,
+                    "Added to account": add_to_account,
+                    "Withdrawn from account": withdraw_from_account,
+                    "Tax withheld" : tax_withheld,
+                    "Ending Balance": end_balance
+                },
+                index=[0])
+            compound_interest_result_df = pd.concat([compound_interest_result_df, new_row_df], ignore_index=True)
+            start_balance = end_balance
 
-        # Setting titles
-        fig.update_layout(
-            title=f"Parameter Combinations for Expectancy = {expectancy}R",
-            xaxis_title="Win Rate (%)",
-            yaxis_title="Reward to Risk Ratio",
-            yaxis2_title="Kelly Criterion %",
-            xaxis=dict(showgrid=False),
-            yaxis=dict(showgrid=False),
-            yaxis2=dict(showgrid=False),
-            hovermode='x',
-            legend=dict(
-                orientation='h',
-                yanchor='bottom',
-                y=1.02,
-                xanchor='center',
-                x=0.5
-            ),
-            template='plotly_white'
-        )
 
-        st.plotly_chart(fig, config={'displayModeBar': False}, use_container_width=True)
-    else:
-        st.warning("This expectancy value is not mathematically possible with positive risk:reward ratios")
+    st.dataframe(compound_interest_result_df)
+
+with tab2:
+    # Present data in the container with tabs - one for chart, one for data table
+    chart_container = st.container()
+    with chart_container:
+        st.line_chart(compound_interest_result_df, y=["Ending Balance"])
+        # else:
+        #     st.warning("This expectancy value is not mathematically possible with positive risk:reward ratios")
+
 
 # Explanation section
 # with st.expander("💡 How to interpret these results"):
