@@ -1,6 +1,4 @@
 import streamlit as st
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import pandas as pd
 
 
@@ -19,8 +17,8 @@ st.set_page_config(page_title="Compound Interest Calculator", layout="wide", pag
 
 st.title("Compound Interest Calculator")
 st.markdown("""
-**Explain what the app does**  
-*Explain it even more*
+**App calculates compounded returns from the trading strategy **  
+*Explain it even more, please*
 """)
 
 # Sidebar with information
@@ -29,7 +27,7 @@ with st.sidebar:
     st.subheader("Compounded Interest Formula")
     st.markdown("""
     ```
-    like that:
+    put compounded interest formula instead of that below and explain that in our case we in fact compound the risk we take on the trade.
     E = (W × R) - (1 - W)*1
     ```
     - **W** = Win probability (decimal, 0-1)
@@ -78,9 +76,9 @@ with col1:
     no_of_periods = st.slider(
         "**Number of Periods**",
         min_value=1,
-        max_value=100,
+        max_value=200,
         value=12,
-        help="Number of periods to project forward"
+        help="Number of periods to project forward - one cycle contains multiple periods"
     )
 
     no_of_cycles = st.slider(
@@ -88,13 +86,15 @@ with col1:
         min_value=1,
         max_value=50,
         value=30,
-        help="Number of cycles to project forward"
+        help="Number of cycles to project forward - one cycle contains multiple periods"
     )
 
 with col2:
-    st.header("📊 Position Size Setup")
+    st.header("📊 Account and Risk Setup")
+    # Use list as an input for Period or Cycle choice
     period_cycle_choice = ["Period", "Cycle"]
 
+    # Container for account balance - we want to know starting balance and the users target
     with st.container():
         col_a, col_b = st.columns(2)
         with col_a:
@@ -102,54 +102,67 @@ with col2:
                 "Starting Account Balance",
                 min_value=500,
                 max_value=500000,
+                help="The balance user is starting with"
             )
         with col_b:
             ending_account_balance = st.number_input(
                 "Ending Account Balance",
                 min_value=100000,
                 max_value=100000000,
+                help="The target balance the user wants to reach"
             )
 
+    # We want to know if user wants to add to the account per period or cycle
     with st.container():
         col_a, col_b = st.columns(2)
         with col_a:
             add_to_account_value = st.number_input("Add to account", min_value=0, max_value=10000)
         with col_b:
             add_to_account_period = st.segmented_control(
-                "Added to account period",
+                "Add every:",
                 period_cycle_choice,
-                key="Add period"
+                key="Add period",
+                help="User wants to add certain amount of money to the account per Period or Cycle"
             )
+
+    # We want to know if user wants to add to the account per period or cycle
     with st.container():
         col_a, col_b = st.columns(2)
         with col_a:
             withdraw_from_account_value = st.number_input("Withdraw from account", min_value=0, max_value=10000)
         with col_b:
             withdraw_from_account_period = st.segmented_control(
-                "Withdrawn from account period",
+                "Withdraw every:",
                 period_cycle_choice,
-                key="Withdraw period"
+                key="Withdraw period",
+                help="User wants to withdraw certain amount of money to the account per Period or Cycle"
             )
 
+    # We want to know if user pays capital gains tax and show how it impacts their results
     with st.container():
         col_a, col_b = st.columns(2)
         with col_a:
             tax_value_pct = st.slider("Capital Gains Tax", min_value=0, max_value=100)
         with col_b:
             tax_period = st.segmented_control(
-                "Tax paid per period",
+                "Pay Tax every:",
                 period_cycle_choice,
-                key="Tax period"
+                key="Tax period",
+                help="User needs to pay certain amount of Gains Tax per Period or Cycle"
             )
+
+    # We want to know users preferred risk and how they want to compound it
     with st.container():
         col_a, col_b = st.columns(2)
         with col_a:
-            user_risk_pct = st.number_input("Risk per trade as a % of bankroll", min_value=0.1, max_value=100.00)
+            user_risk_pct = st.number_input("Risk per trade as a % of bankroll", min_value=0.1, max_value=100.00, value=2.0)
         with col_b:
             user_risk_adj_period = st.segmented_control(
-                "Adjust per period",
+                "Adjust Risk every:",
                 period_cycle_choice,
-                key="Adjust risk period")
+                key="Adjust risk period",
+                help="User wants to adjust % Risk per Period or Cycle"
+            )
 
 # Calculations section:
 expectancy = calculate_expectancy(win_probability_pct, win_reward_R)
@@ -158,86 +171,103 @@ kelly_percentage = calculate_kelly_criterion(win_probability_pct, win_reward_R) 
 kelly_percentage = max(0, kelly_percentage)
 
 # Strategy Summary
-st.markdown("#")
-st.header("⚖️ Strategy Summary")
-strategy_obj_df = pd.DataFrame({
-    "Win-Rate %": win_probability_pct,
-    "R Ratio": win_reward_R,
-    "Expectancy": expectancy,
-    "Kelly Criterion": kelly_percentage,
-    "User Risk %": user_risk_pct
-}, index=[0])
-st.dataframe(strategy_obj_df, hide_index=True)
-
 strategy_container = st.container()
+with strategy_container:
+    st.markdown("#")
+    st.header("⚖️ Strategy Summary")
+    strategy_obj_df = pd.DataFrame({
+        "Win-Rate %": win_probability_pct,
+        "R Ratio": win_reward_R,
+        "Expectancy": expectancy,
+        "Kelly Criterion": kelly_percentage,
+        "User Risk %": user_risk_pct
+    }, index=[0])
+
+    # DataFrame needs some design polishing
+    st.dataframe(strategy_obj_df, hide_index=True)
 
 
 # Visualisation section
-st.markdown("#")
-st.header("📈 Expectancy Analysis")
-st.markdown("""
-**Visualizing how win rate and Reward to Risk ratio relate for the same expectancy**  
-*The curves below show alternative parameter combinations that yield the same expectancy*
-""")
-tab1, tab2 = st.tabs(["DataTable", "Chart"])
-with tab1:
-    compound_interest_result_df = pd.DataFrame()
-    start_balance = starting_account_balance
-    risk_per_trade = start_balance * user_risk_pct / 100
+visualisation_container = st.container()
+with visualisation_container:
+    st.markdown("#")
+    st.header("📈 Compounded Returns")
+    st.markdown("""
+    **Visualizing how compounded risk rate impacts the end result**  
+    *Explain it nicely*
+    """)
 
-    for cycle in range(no_of_cycles):
-        return_per_cycle = []
+    # Present data in tabs - one for table and one for chart
+    tab1, tab2 = st.tabs(["DataTable", "Chart"])
+    with tab1:
+        # Create DataFrame for the compound rate results
+        compound_interest_result_df = pd.DataFrame()
+        # Take start balance before entering the loop
+        start_balance = starting_account_balance
+        # Set the initial risk before entering the loop
+        risk_per_trade = round(start_balance * user_risk_pct / 100, 0)
 
-        for period in range(no_of_periods):
-            if start_balance >= ending_account_balance: break;
-            if (period == 0) and (user_risk_adj_period == "Cycle"):
-                risk_per_trade = start_balance * user_risk_pct / 100
-            elif user_risk_adj_period == "Period":
-                risk_per_trade = start_balance * user_risk_pct / 100
-            else:
-                risk_per_trade = risk_per_trade
-            return_on_period = r_return_per_period * risk_per_trade
-            return_per_cycle.append(return_on_period)
-            tax_withheld = return_on_period * tax_value_pct / 100 if tax_period == "Period" else 0
-            add_to_account = add_to_account_value if add_to_account_period == "Period"  else 0
-            withdraw_from_account = withdraw_from_account_value if withdraw_from_account_period == "Period" else 0
+        # Enter the loop - cycles contains periods
+        for cycle in range(no_of_cycles):
+            return_per_cycle = []
 
-            if period == no_of_periods-1:
-                add_to_account = add_to_account_value if add_to_account_period == "Cycle" else 0
-                withdraw_from_account = withdraw_from_account_value if withdraw_from_account_period == "Cycle" else 0
-                tax_withheld = sum(return_per_cycle) * tax_value_pct / 100 if tax_period == "Cycle" else 0
+            for period in range(no_of_periods):
+                # Work only until the account target has been reached
+                if start_balance >= ending_account_balance:
+                    break
+                # Adjust risk if user adapts risk per cycle or per period in other cases or never it nothing is chosen
+                if (period == 0) and (user_risk_adj_period == "Cycle"):
+                    risk_per_trade = round(start_balance * user_risk_pct / 100, 0)
+                elif user_risk_adj_period == "Period":
+                    risk_per_trade = round(start_balance * user_risk_pct / 100, 0)
+                else:
+                    risk_per_trade = risk_per_trade
 
-            end_balance = start_balance + return_on_period + add_to_account - withdraw_from_account - tax_withheld
+                # Calculations required per period
+                return_on_period = r_return_per_period * risk_per_trade
+                return_per_cycle.append(return_on_period)
+                tax_withheld = round(return_on_period * tax_value_pct / 100, 0) if tax_period == "Period" else 0
+                add_to_account = add_to_account_value if add_to_account_period == "Period" else 0
+                withdraw_from_account = withdraw_from_account_value if withdraw_from_account_period == "Period" else 0
 
-            new_row_df = pd.DataFrame(
-                {
-                    "Cycle": cycle+1,
-                    "Period": period+1,
-                    "Starting Balance": start_balance,
-                    "Risk per trade": risk_per_trade,
-                    "Return" : return_on_period,
-                    "Added to account": add_to_account,
-                    "Withdrawn from account": withdraw_from_account,
-                    "Tax withheld" : tax_withheld,
-                    "Ending Balance": end_balance
-                },
-                index=[0])
-            compound_interest_result_df = pd.concat([compound_interest_result_df, new_row_df], ignore_index=True)
-            start_balance = end_balance
+                # Calculations required if user choose Cycle in some cases rather than Period
+                if period == no_of_periods-1:
+                    add_to_account = add_to_account_value if add_to_account_period == "Cycle" else 0
+                    withdraw_from_account = withdraw_from_account_value if withdraw_from_account_period == "Cycle" else 0
+                    tax_withheld = sum(return_per_cycle) * tax_value_pct / 100 if tax_period == "Cycle" else 0
+
+                end_balance = round(start_balance + return_on_period + add_to_account - withdraw_from_account - tax_withheld, 0)
+
+                # Create new row per each period and later concatenate it with the existing DataFrame
+                new_row_df = pd.DataFrame(
+                    {
+                        "Cycle": cycle+1,
+                        "Period": period+1,
+                        "Starting Balance": start_balance,
+                        "Risk per trade": risk_per_trade,
+                        "Return": return_on_period,
+                        "Added to account": add_to_account,
+                        "Withdrawn from account": withdraw_from_account,
+                        "Tax withheld": tax_withheld,
+                        "Ending Balance": end_balance
+                    },
+                    index=[0])
+                compound_interest_result_df = pd.concat([compound_interest_result_df, new_row_df], ignore_index=True)
+                start_balance = end_balance
+        # Show DataFrame
+        # Requires some designing
+        st.dataframe(compound_interest_result_df, hide_index=True)
+
+    with tab2:
+        # Present data in the container with tabs - one for chart, one for data table
+        chart_container = st.container()
+        with chart_container:
+            st.line_chart(compound_interest_result_df, y=["Ending Balance"])
+            # else:
+            #     st.warning("This expectancy value is not mathematically possible with positive risk:reward ratios")
 
 
-    st.dataframe(compound_interest_result_df)
-
-with tab2:
-    # Present data in the container with tabs - one for chart, one for data table
-    chart_container = st.container()
-    with chart_container:
-        st.line_chart(compound_interest_result_df, y=["Ending Balance"])
-        # else:
-        #     st.warning("This expectancy value is not mathematically possible with positive risk:reward ratios")
-
-
-# Explanation section
+# Explanation section - Please adapt explanation section for this app
 # with st.expander("💡 How to interpret these results"):
 #     st.markdown(f"""
 #     With a **{win_probability_pct}% win rate** and **{win_reward_R} : 1 reward-to-risk ratio**:
