@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
+# Set page headers
+st.set_page_config(page_title="Trading Strategy Compounding Simulator", layout="wide", page_icon="📈")
+
 # Custom CSS
 st.markdown("""
 <style>
@@ -13,19 +16,39 @@ h2 {color: #1e3a8a;}
 </style>
 """, unsafe_allow_html=True)
 
-def calculate_expectancy(win_probability, win_reward):
-    return round(win_probability / 100 * win_reward - (1-win_probability/100), 2)
+
+def calculate_expectancy(win_probability: float, win_reward: float) -> float:
+    """
+    Calculate the average expected return (expected value) per trade.
+
+    Args:
+        win_probability (float): Chance of winning (0–100).
+        win_reward (float): Reward-to-risk ratio (e.g., 2 means 2:1).
+
+    Returns:
+        float: Expectancy value, rounded to 2 decimals.
+               Positive = profitable on average, negative = losing.
+    """
+    return round(win_probability / 100 * win_reward - (1 - win_probability / 100), 2)
 
 
-def calculate_kelly_criterion(win_probability, win_reward):
+def calculate_kelly_criterion(win_probability: float, win_reward: float) -> float:
+    """
+    Calculate the Kelly Criterion position sizing fraction.
+
+    Args:
+        win_probability (float): Probability of winning, as a percentage (0–100).
+        win_reward (float): Reward-to-risk ratio (e.g., 2 means 2:1).
+
+    Returns:
+        float: Fraction of capital to risk per trade, rounded to 4 decimals.
+    """
     win_decimal = win_probability / 100
     loss_decimal = 1 - win_decimal
-    return round((win_decimal-(loss_decimal/win_reward)), 4)
+    return round((win_decimal - (loss_decimal / win_reward)), 4)
 
 
-# Page headers
-st.set_page_config(page_title="Trading Strategy Compounding Simulator", layout="wide", page_icon="📈")
-
+# Start page with the title and description
 st.title("💸 Trading Strategy Compounding Simulator")
 st.markdown("""
 **Visualize how compounding affects your trading results over time**  
@@ -52,11 +75,15 @@ with st.sidebar:
     st.caption("*For educational purposes only*")
 
 
-# Trading System Setup Section
+# Trading System Setup Section - create two columns
+# Left column for Strategy setup
+# Right column for Account Management settings
 col1, col2 = st.columns(2)
 with col1:
     st.header("🧮 Strategy Setup")
     st.subheader("Trading System")
+
+    # Slider for strategy win rate setting
     win_probability_pct = st.slider(
         "**Win Probability (%)**",
         min_value=1,
@@ -65,6 +92,7 @@ with col1:
         help="Percentage of trades that are winners"
     )
 
+    # Slider for strategy avg R multiple reward setting
     win_reward_R = st.slider(
         "**Reward to Risk Ratio**",
         min_value=0.1,
@@ -74,6 +102,7 @@ with col1:
         help="Profit potential relative to your risk (e.g., 2.0 = 2:1 ratio)"
     )
 
+    # User sets expected number of opportunities/trades per period
     st.subheader("Time Horizon")
     no_of_opportunities_per_period = st.slider(
         "**Opportunities per Period**",
@@ -83,6 +112,10 @@ with col1:
         help="Number of trading opportunities in a given time period"
     )
 
+    # User sets how many periods are in cycle
+    # Usecase: if traders works finds opportunities daily they
+    # may be interested in tracking 20 periods per cycle (20 days in a month - no weekends)
+    # if weekly they may track 50 periods in a cycle (50 weeks in a year - excluding holiday weeks approx.)
     no_of_periods = st.slider(
         "**Periods per Cycle**",
         min_value=1,
@@ -119,13 +152,13 @@ with col2:
         with col_balance_2:
             ending_account_balance = st.number_input(
                 "Ending Account Balance",
-                min_value=starting_account_balance,
+                min_value=int(starting_account_balance),  # min value cannot be below starting balance
                 max_value=100000000,
-                value=1000000,
+                value=max(1000000, int(starting_account_balance)),
                 help="Financial target"
             )
 
-    # We want to know if user wants to add to the account per period or cycle
+    # We want to know if user wants to add funds to the account per period or cycle
     with st.container():
         st.subheader("Cash Flows")
         col_add_1, col_add_2 = st.columns(2)
@@ -145,7 +178,7 @@ with col2:
                 help="When contributions are made"
             )
 
-    # We want to know if user wants to add to the account per period or cycle
+    # We want to know if user withdraw funds from the account per period or cycle
     with st.container():
         col_withdraw_1, col_withdraw_2 = st.columns(2)
         with col_withdraw_1:
@@ -164,7 +197,7 @@ with col2:
                 help="User wants to withdraw certain amount of money to the account per Period or Cycle"
             )
 
-    # Tax
+    # Tax rate
     with st.container():
         st.subheader("Risk & Tax Management")
         col_tax_1, col_tax_2 = st.columns(2)
@@ -210,7 +243,7 @@ with col2:
 expectancy = calculate_expectancy(win_probability_pct, win_reward_R)
 r_return_per_period = round(expectancy * no_of_opportunities_per_period, 1)
 kelly_percentage = calculate_kelly_criterion(win_probability_pct, win_reward_R) * 100
-kelly_percentage = max(0, kelly_percentage)
+kelly_percentage = max(0.0, kelly_percentage)
 
 # Strategy Summary
 strategy_container = st.container()
@@ -309,10 +342,12 @@ with visualisation_container:
                     "Ending Balance": "${:,.0f}"
                 }
             ),
-            hide_index=True, use_container_width=True)
+            hide_index=True, width='content')
 
     with tab2:
         # Present data in the container with tabs - one for chart, one for data table
+        # Use plotly fig
+
         fig = go.Figure()
 
         fig.add_trace(go.Scatter(
@@ -343,7 +378,7 @@ with visualisation_container:
             template="plotly_white",
 
         )
-        st.plotly_chart(fig, config={"displayModeBar" : False}, use_container_width=True)
+        st.plotly_chart(fig, config={"displayModeBar": False}, use_container_width=True)
         # else:
         #     st.warning("This expectancy value is not mathematically possible with positive risk:reward ratios")
 
