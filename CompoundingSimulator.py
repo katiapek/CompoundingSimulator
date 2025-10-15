@@ -71,7 +71,7 @@ with st.sidebar:
     """)
     st.markdown("---")
     st.markdown("For more Free Tools Visit:")
-    st.markdown("[ClockTrades.com - Free Trading Tools](https://clocktrades.com/free-trading-tools/)")
+    st.markdown("[MarketsManners.com](https://marketsmanners.com)")
     st.caption("*For educational purposes only*")
 
 
@@ -405,5 +405,5 @@ with st.expander("💡 How to Interpret These Results"):
 
 # Footer
 st.markdown("---")
-st.caption("© 2025 ClockTrades.com • All calculations are theoretical and don't guarantee future results • "
+st.caption("© 2025 MarketsManners.com • All calculations are theoretical and don't guarantee future results • "
            "Risk management is essential in trading")
